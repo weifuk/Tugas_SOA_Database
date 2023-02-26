@@ -1,20 +1,6 @@
 const { QueryTypes } = require("sequelize")
 const databaseSosmed = require("../databases/connectionSosmed")
 
-const getUser = async(username) => {
-    const result = await databaseSosmed.query(
-        "select * from user where username = :username",
-        {
-            type:QueryTypes.SELECT,
-            replacements:{
-                username:username
-            }
-        }
-    ) 
-    
-    return result
-}
-
 const loginUserFriend = async(username, password) => {
     const result = await databaseSosmed.query(
         "select * from user where username = :username && password = :password",
@@ -33,9 +19,26 @@ const loginUserFriend = async(username, password) => {
 const sendMessage = async(req, res) => {
     let {username, password, message, usercari} = req.body
 
-    usercari = getUser(usercari)
+    usercari = await databaseSosmed.query(
+        "select * from user where username = :username",
+        {
+            type:QueryTypes.SELECT,
+            replacements:{
+                username:usercari
+            }
+        }
+    ) 
 
-    usermain = loginUserFriend(username,password)
+    usermain = await databaseSosmed.query(
+        "select * from user where username = :username && password = :password",
+        {
+            type:QueryTypes.SELECT,
+            replacements: {
+                username:username,
+                password:password
+            }
+        }
+    )
 
     if (usercari.length < 1) {
         return res.status(404).json({msg:`User dengan username ${usercari} tidak ditemukan`})
@@ -65,35 +68,20 @@ const sendMessage = async(req, res) => {
     }
 }
 
-const viewFriend = async(req, res) => {
-    let {username} = req.params
-    let {password} = req.body
-
-    usermain = loginUserFriend(username,password)
-
-    if (usermain.length < 1) {
-        return res.status(404).json({msg:`Gagal login`})
-    }
-    else {
-        const result = await databaseSosmed.query(
-            "select * from friend where user_main = :user_main",
-            {
-                type:QueryTypes.SELECT,
-                replacements: {
-                    user_main:username
-                }
-            }
-        )
-
-        return result
-    }
-}
-
 const viewMessage = async(req, res) => {
     let {username} = req.params
     let {password} = req.body
 
-    usermain = loginUserFriend(username,password)
+    usermain = await databaseSosmed.query(
+        "select * from user where username = :username && password = :password",
+        {
+            type:QueryTypes.SELECT,
+            replacements: {
+                username:username,
+                password:password
+            }
+        }
+    )
 
     if (usermain.length < 1) {
         return res.status(404).json({msg:`Gagal login`})
@@ -109,7 +97,19 @@ const viewMessage = async(req, res) => {
             }
         )
 
-        return res.status(200).json(result)
+        temp_res = [];
+
+        result.forEach(res => {
+            new_res = {
+                from:res.user_sender,
+                to:res.user_receiver,
+                message:res.message
+            }
+
+            temp_res.push(new_res);
+        });
+
+        return res.status(200).json(temp_res);
     }
 }
 

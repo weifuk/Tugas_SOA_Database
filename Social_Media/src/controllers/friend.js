@@ -1,22 +1,20 @@
 const { QueryTypes } = require("sequelize")
 const databaseSosmed = require("../databases/connectionSosmed")
 
-const getUser = async(username) => {
-    const result = await databaseSosmed.query(
+const addFriend = async(req, res) => {
+    let {username, password, usercari} = req.body
+
+    user_usercari = await databaseSosmed.query(
         "select * from user where username = :username",
         {
             type:QueryTypes.SELECT,
             replacements:{
-                username:username
+                username:usercari
             }
         }
-    ) 
-    
-    return result
-}
+    )
 
-const loginUserFriend = async(username, password) => {
-    const result = await databaseSosmed.query(
+    usermain = await databaseSosmed.query(
         "select * from user where username = :username && password = :password",
         {
             type:QueryTypes.SELECT,
@@ -27,17 +25,7 @@ const loginUserFriend = async(username, password) => {
         }
     )
 
-    return result
-}
-
-const addFriend = async(req, res) => {
-    let {username, password, usercari} = req.body
-
-    usercari = getUser(usercari)
-
-    usermain = loginUserFriend(username,password)
-
-    if (usercari.length < 1) {
+    if (user_usercari.length < 1) {
         return res.status(404).json({msg:`User dengan username ${usercari} tidak ditemukan`})
     }
     else if (usermain.length < 1) {
@@ -50,7 +38,7 @@ const addFriend = async(req, res) => {
                 type:QueryTypes.INSERT,
                 replacements: {
                     user_main:username,
-                    password:password
+                    user_friend:usercari
                 }
             }
         )
@@ -67,14 +55,23 @@ const viewFriend = async(req, res) => {
     let {username} = req.params
     let {password} = req.body
 
-    usermain = loginUserFriend(username,password)
+    usermain = await databaseSosmed.query(
+        "select * from user where username = :username && password = :password",
+        {
+            type:QueryTypes.SELECT,
+            replacements: {
+                username:username,
+                password:password
+            }
+        }
+    )
 
     if (usermain.length < 1) {
         return res.status(404).json({msg:`Gagal login`})
     }
     else {
         const result = await databaseSosmed.query(
-            "select * from friend where user_main = :user_main",
+            "select u.username, u.nama, u.alamat, u.nomorhp from user u join friend f on f.user_friend = u.username where user_main = :user_main",
             {
                 type:QueryTypes.SELECT,
                 replacements: {
@@ -83,16 +80,45 @@ const viewFriend = async(req, res) => {
             }
         )
 
-        return res.status(200).json(result)
+        temp_res = [];
+        result.forEach(res => {
+            new_obj = {};
+            obj_isi = {
+                nama:res.nama,
+                alamat:res.alamat,
+                nomorhp:res.nomorhp
+            };
+            new_obj[res.username] = obj_isi
+            temp_res.push(new_obj);
+        });
+
+
+        return res.status(200).json(temp_res)
     }
 }
 
 const deleteFriend = async(req, res) => {
     let {username, password, usercari} = req.body
 
-    usercari = getUser(usercari)
-
-    usermain = loginUserFriend(username,password)
+    usercari = await databaseSosmed.query(
+        "select * from user where username = :username",
+        {
+            type:QueryTypes.SELECT,
+            replacements:{
+                username:usercari
+            }
+        }
+    )
+    usermain = await databaseSosmed.query(
+        "select * from user where username = :username && password = :password",
+        {
+            type:QueryTypes.SELECT,
+            replacements: {
+                username:username,
+                password:password
+            }
+        }
+    )
 
     if (usercari.length < 1) {
         return res.status(404).json({msg:`User dengan username ${usercari} tidak ditemukan`})
